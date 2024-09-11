@@ -44,7 +44,6 @@ def update_light_state(state, hue_bridge_ip=HUE_BRIDGE_IP):
   return response.json()
 
 def call_language_model():
-  LLM_CHAT_ADDRESS = f'http://{LLM_IP}:1234/v1/chat/completions'
   system_prompt = f"""
 You are a helpful, smart, kind, and efficient AI assistant.
 You always fulfill the user's requests to the best of your ability.
