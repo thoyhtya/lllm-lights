@@ -6,16 +6,17 @@ import time
 
 # Services in local network
 HUE_BRIDGE_IP = "192.168.71.133"
+HUE_API = f"http://{HUE_BRIDGE_IP}:80/api"
 LLM_IP = "192.168.71.132"
 LLM_CHAT_ADDRESS = f"http://{LLM_IP}:1234/v1/chat/completions"
 
-def get_light_state(hue_bridge_ip=HUE_BRIDGE_IP):
-  url = f'http://{hue_bridge_ip}:80/api/pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU/lights'
+def get_light_state():
+  url = f"{HUE_API}/pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU/lights"
   response = requests.get(url)
   return json.dumps(response.json())
 
 # Example state = {"on": True, "xy": [0.64, 0.33], "sat": 255, "bri": 254}
-def update_light_state(state, hue_bridge_ip=HUE_BRIDGE_IP):
+def update_light_state(state):
 
   # Parse state parameter into a dictionary if it's not already one
   if isinstance(state, str):
@@ -38,12 +39,12 @@ def update_light_state(state, hue_bridge_ip=HUE_BRIDGE_IP):
     if key not in supported_keys:
       del state_dict[key]
 
-  url = f'http://{hue_bridge_ip}:80/api/pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU/lights/1/state'
+  url = f"{HUE_API}/pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU/lights/1/state"
   headers = {'Content-Type': 'application/json'}
   response = requests.put(url, headers=headers, json=state_dict)
   return response.json()
 
-def call_language_model():
+def call_language_model(chat=None):
   system_prompt = f"""
 You are a helpful, smart, kind, and efficient AI assistant.
 You always fulfill the user's requests to the best of your ability.
@@ -65,6 +66,9 @@ Could you please switch the light color to something completely different?
 Explain your decision.
 """
 
+  if chat:
+    user_message = chat
+
   data = {
     "model": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
     "messages": [
@@ -76,27 +80,36 @@ Explain your decision.
     "stream": False
   }
 
-  #for msg in data["messages"]:
-  #  print(f"{msg['role']}: {msg['content']}")
-
   response = requests.post(LLM_CHAT_ADDRESS, json=data)
   message = response.json()["choices"][0]["message"]["content"]
 
-  #print(response.text)
-  print("assistant: ")
+  #print(response.text) # model info, token usage, parameters
+  print("AI: ")
   print(message)
+  print()
+  print()
 
+  newstate = parse_commands(message)
+  if newstate:
+    print(f"  [SYSTEM: Updating state]")
+    print(f"  [{newstate}]")
+    execute_commands(newstate)
+  else:
+    print("  [SYSTEM: No actions]")
+  print()
+  print()
+
+def parse_commands(message):
   pattern = r'LIGHTS_01_STATE=({.*})'
   match = re.search(pattern, message)
 
   if match:
-      json_string = match.group(1)
-      print("  [Updating state]")
-      api_response = update_light_state(json_string)
+      return match.group(1)
   else:
-      print("  [No match found]")
-  print()
-  print()
+      return None
+
+def execute_commands(new_state):
+  update_light_state(new_state)
 
 if __name__ == "__main__":
   whitestate = {"on": True, "bri": 254, "xy": [0.5, 0.5], "ct": 500}
@@ -110,5 +123,5 @@ if __name__ == "__main__":
   #print(update_light_state(bluestate))
 
   while True:
-    call_language_model()
-    time.sleep(10)
+    chat = input("HUMAN: ")
+    call_language_model(chat)
