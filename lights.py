@@ -4,15 +4,27 @@ import re
 import requests
 import time
 
-# Services in local network
+### Services in local network
+
+# Get new username from the hue bridge api
+# Uses api v1, there is newer v2 api available too
+# First, press the physical button on the device to avoid error
+# [{"error":{"type":101,"address":"","description":"link button not pressed"}}]
+#
+# curl -X POST -d '{"devicetype":"a"}' -H "Content-Type: application/json" http://192.168.71.133/api
+# [{"success":{"username":"pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU"}}]
+
 HUE_BRIDGE_IP = "192.168.71.133"
-HUE_API = f"http://{HUE_BRIDGE_IP}:80/api"
+HUE_USERNAME = "pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU"
+HUE_API = f"http://{HUE_BRIDGE_IP}:80/api/{HUE_USERNAME}"
+
+# Expects LM Studio Local Server to be started
 LLM_IP = "192.168.71.132"
-LLM_CHAT_ADDRESS = f"http://{LLM_IP}:1234/v1/chat/completions"
+LLM_CHAT_API = f"http://{LLM_IP}:1234/v1/chat/completions"
 
 def get_light_state():
-  url = f"{HUE_API}/pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU/lights"
-  response = requests.get(url)
+  API_ENDPOINT = f"{HUE_API}/lights"
+  response = requests.get(API_ENDPOINT)
   return json.dumps(response.json())
 
 # Example state = {"on": True, "xy": [0.64, 0.33], "sat": 255, "bri": 254}
@@ -39,9 +51,9 @@ def update_light_state(state):
     if key not in supported_keys:
       del state_dict[key]
 
-  url = f"{HUE_API}/pL3shrHhGQAqNtA9H7ww4gvCstu6ZpKbB-ZOd7lU/lights/1/state"
+  API_ENDPOINT = f"{HUE_API}/lights/1/state"
   headers = {'Content-Type': 'application/json'}
-  response = requests.put(url, headers=headers, json=state_dict)
+  response = requests.put(API_ENDPOINT, headers=headers, json=state_dict)
   return response.json()
 
 def call_language_model(chat=None):
@@ -79,7 +91,7 @@ Explain your decision.
     "stream": False
   }
 
-  response = requests.post(LLM_CHAT_ADDRESS, json=data)
+  response = requests.post(LLM_CHAT_API, json=data)
   message = response.json()["choices"][0]["message"]["content"]
 
   print("AI: ")
@@ -120,6 +132,12 @@ if __name__ == "__main__":
 
   #print(update_light_state(bluestate))
 
+  CHAT_MODE = False
+
   while True:
-    chat = input("HUMAN: ")
+    if CHAT_MODE:
+      chat = input("HUMAN: ")
+    else:
+      chat = None
+      time.sleep(10)
     call_language_model(chat)
