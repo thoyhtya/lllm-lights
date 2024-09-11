@@ -56,8 +56,7 @@ Response from Philips Hue Bridge /api/<localbridge>/lights API:
 You also have the ability to update the status of light ID 1.
 If requested, set a new state by producing a string in the format 'LIGHTS_01_STATE=<newstate>',
 where newstate is the json parameter passed to PUT /api/<localbridge>/lights/1/state
-Example response:
-Of course! This color should be exactly what you requested.
+Example:
 LIGHTS_01_STATE={json.dumps({'on': 'True', 'xy': [0.64, 0.33], 'sat': 255, 'bri': 254})}
 """
 
@@ -83,7 +82,6 @@ Explain your decision.
   response = requests.post(LLM_CHAT_ADDRESS, json=data)
   message = response.json()["choices"][0]["message"]["content"]
 
-  #print(response.text) # model info, token usage, parameters
   print("AI: ")
   print(message)
   print()
